@@ -8,8 +8,11 @@ import (
 	"github.com/Deepakpmk007/movie-stream-go/database"
 	"github.com/Deepakpmk007/movie-stream-go/models"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
+
+var validate = validator.New()
 
 func GetMovies() gin.HandlerFunc {
 	movieCollection := database.Collection("movies")
@@ -67,5 +70,30 @@ func GetMovie() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, movie)
+	}
+}
+
+func AddMovie() gin.HandlerFunc {
+	movieCollection := database.Collection("movies")
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		var movie models.Movie
+		if err := c.ShouldBindBodyWithJSON(&movie); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+			return
+		}
+		if err := validate.Struct(&movie); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "vaildator error", "err": err.Error()})
+			return
+		}
+		result, err := movieCollection.InsertOne(ctx, movie)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "faild to add movie", "details": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, result)
 	}
 }
