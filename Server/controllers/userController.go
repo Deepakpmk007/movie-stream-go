@@ -74,3 +74,37 @@ func Registeruser() gin.HandlerFunc {
 
 	}
 }
+
+func LoginUser() gin.HandlerFunc {
+	userCollection := database.Collection("users")
+	return func(c *gin.Context) {
+		var userLogin models.UserLogin
+
+		if err := c.ShouldBindJSON(&userLogin); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+
+		var foundUser models.User
+
+		err := userCollection.FindOne(ctx, bson.M{"email": userLogin.Email}).Decode(&foundUser)
+
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "invalid email or password",
+			})
+			return
+		}
+
+		err = bcrypt.CompareHashAndPassword([]byte(foundUser.Password), []byte(userLogin.Password))
+
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "pssword no match"})
+			return
+		}
+
+	}
+}
