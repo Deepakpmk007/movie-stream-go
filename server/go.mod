@@ -1,4 +1,4 @@
-module ecom-project
+module movie-project
 
 go 1.25.1
 
